@@ -8,9 +8,6 @@ on:
 jobs:
     build:
         runs-on: macos-latest
-        strategy:
-            matrix:
-                target: [aarch64-apple-darwin, x86_64-apple-darwin]
         steps:
             - name: Checkout
               uses: actions/checkout@v4
@@ -18,13 +15,15 @@ jobs:
             - name: Install Rust
               uses: dtolnay/rust-toolchain@stable
               with:
-                  targets: ${{ matrix.target }}
+                  targets: [aarch64-apple-darwin, x86_64-apple-darwin]
 
-            - name: Build
-              run: cargo build --target ${{ matrix.target }} --release
+            - name: Build x86_64 binary
+              run: cargo build --target x86_64-apple-darwin --release
 
-            - name: Rename ARM binary
-              run: mv target/aarch64-apple-darwin/release/mac-soft-rs target/aarch64-apple-darwin/release/mac-soft-rs-arm64
+            - name: Build ARM binary
+              run: |
+                  cargo build --target aarch64-apple-darwin --release
+                  mv target/aarch64-apple-darwin/release/mac-soft-rs target/aarch64-apple-darwin/release/mac-soft-rs-arm64
 
             - name: Release
               uses: softprops/action-gh-release@v2
