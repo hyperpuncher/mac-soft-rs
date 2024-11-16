@@ -41,4 +41,4 @@ temp_file=$(mktemp)
 chmod +x "$temp_file"
 curl -sL "$link" -o "$temp_file"
 
-"$temp_file" "$macOS_version"
+"$temp_file" --macos-version "$macOS_version"
