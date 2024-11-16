@@ -23,7 +23,7 @@ jobs:
             - name: Build ARM binary
               run: |
                   cargo build --target aarch64-apple-darwin --release
-                  mv target/aarch64-apple-darwin/release/mac-soft-rs target/aarch64-apple-darwin/release/mac-soft-rs-arm64
+                  mv target/aarch64-apple-darwin/release/mac-soft-rs target/aarch64-apple-darwin/release/mac-soft-rs_arm64
 
             - name: Release
               uses: softprops/action-gh-release@v2
@@ -32,4 +32,4 @@ jobs:
                   name: ${{ github.ref_name }}
                   files: |
                       target/x86_64-apple-darwin/release/mac-soft-rs
-                      target/aarch64-apple-darwin/release/mac-soft-rs-arm64
+                      target/aarch64-apple-darwin/release/mac-soft-rs_arm64
