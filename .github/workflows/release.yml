@@ -23,6 +23,7 @@ jobs:
             - name: Build
               run: cargo build --target ${{ matrix.target }} --release
 
+            - name: Rename ARM binary
               run: mv target/aarch64-apple-darwin/release/mac-soft-rs target/aarch64-apple-darwin/release/mac-soft-rs-arm64
 
             - name: Release
