@@ -1,0 +1,29 @@
+name: Release
+
+on:
+    push:
+        tags:
+            - "v*"
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                target: [aarch64-apple-darwin, x86_64-apple-darwin]
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Install Rust
+              uses: dtolnay/rust-toolchain@stable
+              targets: ${{ matrix.target }}
+
+            - name: Build
+              run: cargo build --target ${{ matrix.target }} --release
+
+            - name: Upload Artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: ${{ matrix.target }}
+                  path: target/${{ matrix.target }}/release/mac-soft-rs
