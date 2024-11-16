@@ -30,9 +30,9 @@ esac
 
 if [ "$arch" = "arm64" ]; then
     macOS_version=arm64_$macOS_version
-    link="https://github.com/hyperpuncher/mac-soft-rs/releases/download/latest/mac-soft-rs_arm64"
+    link="https://github.com/hyperpuncher/mac-soft-rs/releases/latest/download/mac-soft-rs_arm64"
 else
-    link="https://github.com/hyperpuncher/mac-soft-rs/releases/download/latest/mac-soft-rs"
+    link="https://github.com/hyperpuncher/mac-soft-rs/releases/latest/download/mac-soft-rs"
 fi
 
 temp_file=$(mktemp)
