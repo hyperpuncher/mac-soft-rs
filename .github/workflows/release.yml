@@ -12,6 +12,9 @@ jobs:
             - name: Checkout
               uses: actions/checkout@v4
 
+            - name: Install musl-tools
+              run: sudo apt update && sudo apt install musl-tools
+
             - name: Install Rust
               uses: dtolnay/rust-toolchain@stable
               with:
