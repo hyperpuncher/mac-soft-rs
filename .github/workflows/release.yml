@@ -15,7 +15,7 @@ jobs:
             - name: Install Rust
               uses: dtolnay/rust-toolchain@stable
               with:
-                  targets: [aarch64-apple-darwin, x86_64-apple-darwin]
+                  targets: aarch64-apple-darwin, x86_64-apple-darwin
 
             - name: Build x86_64 binary
               run: cargo build --target x86_64-apple-darwin --release
