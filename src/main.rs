@@ -85,9 +85,8 @@ async fn download_app(
 
 #[tokio::main]
 async fn main() {
-    // let args = Args::parse();
-    // let macos_version = args.macos_version;
-    let macos_version = String::from("monterey");
+    let args = Args::parse();
+    let macos_version = args.macos_version;
 
     let apps = vec![
         "anydesk",
