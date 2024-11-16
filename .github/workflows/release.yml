@@ -1,6 +1,9 @@
 name: Release
 
-on: push
+on:
+    push:
+        tags:
+            - "v*"
 
 jobs:
     build:
@@ -20,8 +23,9 @@ jobs:
             - name: Build
               run: cargo build --target ${{ matrix.target }} --release
 
-            - name: Upload Artifact
-              uses: actions/upload-artifact@v4
+            - name: Release
+              uses: softprops/action-gh-release@v2
+              if: startsWith(github.ref, 'refs/tags/')
               with:
-                  name: ${{ matrix.target }}
-                  path: target/${{ matrix.target }}/release/mac-soft-rs
+                  name: mac-soft-rs_${{ github.ref_name }}_${{ matrix.target }}
+                  files: target/${{ matrix.target }}/release/mac-soft-rs
