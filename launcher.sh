@@ -1,5 +1,3 @@
-#!/usr/bin/env sh
-
 macOS_version=$(sw_vers -productVersion)
 arch=$(uname -m)
 
