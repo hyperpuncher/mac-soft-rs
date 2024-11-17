@@ -24,6 +24,14 @@ jobs:
               run: |
                   cargo build --target aarch64-apple-darwin --release
                   mv target/aarch64-apple-darwin/release/mac-soft-rs target/aarch64-apple-darwin/release/mac-soft-rs_arm64
+                
+            - name: Compress binaries
+              run: |
+                  cd target/x86_64-apple-darwin/release
+                  zip mac-soft-rs.zip mac-soft-rs
+                  cd -
+                  cd target/aarch64-apple-darwin/release
+                  zip mac-soft-rs_arm64.zip mac-soft-rs_arm64
 
             - name: Release
               uses: softprops/action-gh-release@v2
@@ -31,5 +39,5 @@ jobs:
               with:
                   name: ${{ github.ref_name }}
                   files: |
-                      target/x86_64-apple-darwin/release/mac-soft-rs
-                      target/aarch64-apple-darwin/release/mac-soft-rs_arm64
+                      target/x86_64-apple-darwin/release/mac-soft-rs.zip
+                      target/aarch64-apple-darwin/release/mac-soft-rs_arm64.zip
