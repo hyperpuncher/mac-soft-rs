@@ -23,7 +23,6 @@ jobs:
             - name: Build ARM binary
               run: |
                   cargo build --target aarch64-apple-darwin --release
-                  mv target/aarch64-apple-darwin/release/mac-soft-rs target/aarch64-apple-darwin/release/mac-soft-rs_arm64
                 
             - name: Compress binaries
               run: |
@@ -31,7 +30,7 @@ jobs:
                   zip mac-soft-rs.zip mac-soft-rs
                   cd -
                   cd target/aarch64-apple-darwin/release
-                  zip mac-soft-rs_arm64.zip mac-soft-rs_arm64
+                  zip mac-soft-rs_arm64.zip mac-soft-rs
 
             - name: Release
               uses: softprops/action-gh-release@v2

@@ -35,11 +35,12 @@ else
     link="https://github.com/hyperpuncher/mac-soft-rs/releases/latest/download/mac-soft-rs.zip"
 fi
 
-temp_file=$(mktemp)
-curl -sL "$link" -o "$temp_file"
-bin_file=$(unzip -Z -1 "$temp_file")
-unzip -o "$temp_file"
-rm "$temp_file"
-chmod +x "$bin_file"
+temp_dir=$(mktemp -d)
+cd "$temp_dir" || exit
+curl -sLO "$link"
+unzip -qo ./*zip
+chmod +x mac-soft-rs
 
-"$bin_file" "$macOS_version"
+mac-soft-rs "$macOS_version"
+
+rm -rf "$temp_dir"
