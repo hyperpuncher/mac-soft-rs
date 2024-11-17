@@ -1,4 +1,3 @@
-use clap::Parser;
 use dialoguer::{theme::ColorfulTheme, MultiSelect};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use reqwest;
@@ -7,12 +6,6 @@ use std::collections::HashMap;
 use std::fs;
 use tokio::task;
 use url::Url;
-
-#[derive(Parser, Debug)]
-struct Args {
-    #[arg(short, long)]
-    macos_version: String,
-}
 
 #[derive(Deserialize)]
 struct CaskData {
@@ -85,8 +78,7 @@ async fn download_app(
 
 #[tokio::main]
 async fn main() {
-    let args = Args::parse();
-    let macos_version = args.macos_version;
+    let macos_version = std::env::args().nth(1).unwrap();
 
     let apps = vec![
         "anydesk",
