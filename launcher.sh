@@ -41,6 +41,6 @@ curl -sLO "$link"
 unzip -qo ./*zip
 chmod +x mac-soft-rs
 
-mac-soft-rs "$macOS_version"
+./mac-soft-rs "$macOS_version"
 
 rm -rf "$temp_dir"
