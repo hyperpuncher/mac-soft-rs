@@ -4,6 +4,8 @@ use reqwest;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs;
+use std::path::Path;
+use std::process::Command;
 use tokio::task;
 use url::Url;
 
@@ -21,6 +23,7 @@ struct Variation {
 async fn download_app(
     app_name: &str,
     macos_version: &str,
+    output_dir: &str,
     pb: ProgressBar,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let url = format!("https://formulae.brew.sh/api/cask/{}.json", app_name);
@@ -33,12 +36,6 @@ async fn download_app(
             .unwrap_or(response.url),
         None => response.url,
     };
-
-    let output_dir = format!(
-        "{}/Downloads/mac-soft-rs",
-        dirs::home_dir().unwrap().display()
-    );
-    fs::create_dir_all(&output_dir).expect("Failed to create directory");
 
     // Extract the file name from the URL
     let url_obj = Url::parse(&download_url)?;
@@ -72,6 +69,55 @@ async fn download_app(
     } else {
         pb.finish_with_message(format!("Failed to download {}", app_name));
     }
+
+    Ok(())
+}
+
+async fn dmg_installer(dmg: &str, pb: ProgressBar) -> Result<(), Box<dyn std::error::Error>> {
+    let output = Command::new("hdiutil").arg("attach").arg(dmg).output()?;
+
+    if !output.status.success() {
+        eprintln!("Failed to attach DMG.");
+        return Ok(());
+    }
+
+    let output_str = String::from_utf8_lossy(&output.stdout);
+    let volume_path = output_str
+        .lines()
+        .last()
+        .and_then(|line| line.split_whitespace().last())
+        .unwrap();
+
+    let dest_dir = Path::new("/Applications");
+
+    pb.set_length(100);
+
+    for entry in fs::read_dir(volume_path)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        if path.is_file() {
+            if let Some(extension) = path.extension() {
+                if extension == "app" {
+                    pb.set_message(format!(
+                        "Installing {}",
+                        entry.file_name().to_string_lossy()
+                    ));
+                    fs::copy(entry.path(), dest_dir.join(entry.file_name()))?;
+                    pb.set_position(100);
+                    pb.finish_with_message(format!(
+                        "Installed {}",
+                        entry.file_name().to_string_lossy()
+                    ));
+                }
+            }
+        }
+    }
+
+    Command::new("hdiutil")
+        .arg("detach")
+        .arg(volume_path)
+        .output()?;
 
     Ok(())
 }
@@ -112,6 +158,12 @@ async fn main() {
         }
     };
 
+    let output_dir = format!(
+        "{}/Downloads/mac-soft-rs",
+        dirs::home_dir().unwrap().display()
+    );
+    fs::create_dir_all(&output_dir).expect("Failed to create directory");
+
     // Convert selections to actual app names
     let selected_apps: Vec<&str> = selections.into_iter().map(|i| apps[i]).collect();
 
@@ -122,6 +174,7 @@ async fn main() {
     for app in &selected_apps {
         let app_name = app.to_string();
         let macos_version = macos_version.clone();
+        let output_dir = output_dir.clone();
 
         // Create a new progress bar for this download
         let pb = mp.add(ProgressBar::new(0));
@@ -135,7 +188,7 @@ async fn main() {
         pb.set_message(format!("Downloading {}", app_name));
 
         let task = task::spawn(async move {
-            match download_app(&app_name, &macos_version, pb).await {
+            match download_app(&app_name, &macos_version, &output_dir, pb).await {
                 Ok(_) => (),
                 Err(err) => eprintln!("Failed to download {}: {}", app_name, err),
             }
@@ -146,5 +199,25 @@ async fn main() {
     // Wait for all downloads to complete
     for task in tasks {
         task.await.unwrap();
+    }
+
+    for entry in fs::read_dir(output_dir).unwrap() {
+        let entry = entry.unwrap();
+        let path = entry.path();
+
+        let pb = mp.add(ProgressBar::new(0));
+        pb.set_style(
+            ProgressStyle::with_template(
+                "[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
+            )
+            .unwrap()
+            .progress_chars("##-"),
+        );
+
+        if let Some(extension) = path.extension() {
+            if extension == "dmg" {
+                dmg_installer(path.to_str().unwrap(), pb);
+            }
+        }
     }
 }
