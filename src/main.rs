@@ -201,23 +201,38 @@ async fn main() {
         task.await.unwrap();
     }
 
+    let mut install_tasks = vec![];
+
     for entry in fs::read_dir(output_dir).unwrap() {
         let entry = entry.unwrap();
         let path = entry.path();
 
-        let pb = mp.add(ProgressBar::new(0));
-        pb.set_style(
-            ProgressStyle::with_template(
-                "[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
-            )
-            .unwrap()
-            .progress_chars("##-"),
-        );
-
         if let Some(extension) = path.extension() {
             if extension == "dmg" {
-                dmg_installer(path.to_str().unwrap(), pb);
+                let pb = mp.add(ProgressBar::new(0));
+                pb.set_style(
+                    ProgressStyle::with_template(
+                        "[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
+                    )
+                    .unwrap()
+                    .progress_chars("##-"),
+                );
+
+                let dmg_path = path.to_str().unwrap().to_string();
+
+                let task = task::spawn(async move {
+                    match dmg_installer(&dmg_path, pb).await {
+                        Ok(_) => (),
+                        Err(err) => eprintln!("Failed to install {}: {}", dmg_path, err),
+                    }
+                });
+                install_tasks.push(task);
             }
         }
+    }
+
+    // Wait for all installations to complete
+    for task in install_tasks {
+        task.await.unwrap();
     }
 }
