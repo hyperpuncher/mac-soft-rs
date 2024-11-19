@@ -3,9 +3,10 @@ use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use reqwest;
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::fs;
 use std::path::Path;
 use std::process::Command;
+use tokio::fs;
+use tokio::io;
 use tokio::task;
 use url::Url;
 
@@ -18,6 +19,26 @@ struct CaskData {
 #[derive(Deserialize)]
 struct Variation {
     url: String,
+}
+
+async fn copy_dir(src: &Path, dest: &Path) -> io::Result<()> {
+    let mut stack = vec![src.to_path_buf()];
+
+    while let Some(current_src) = stack.pop() {
+        let current_dest = dest.join(current_src.strip_prefix(src).unwrap());
+
+        if current_src.is_dir() {
+            fs::create_dir_all(&current_dest).await?;
+            let mut entries = fs::read_dir(&current_src).await?;
+            while let Some(entry) = entries.next_entry().await? {
+                stack.push(entry.path());
+            }
+        } else if current_src.is_file() {
+            fs::copy(&current_src, &current_dest).await?;
+        }
+    }
+
+    Ok(())
 }
 
 async fn download_app(
@@ -49,7 +70,6 @@ async fn download_app(
     let mut response = reqwest::get(&download_url).await?;
 
     if let Some(total_size) = response.content_length() {
-        pb.set_length(100);
         let mut downloaded_size = 0u64;
 
         let mut file = tokio::fs::File::create(&file_path).await?;
@@ -59,8 +79,6 @@ async fn download_app(
             let chunk_size = chunk.len() as u64;
             downloaded_size += chunk_size;
             tokio::io::copy(&mut chunk.as_ref(), &mut file).await?;
-
-            // Calculate percentage completed and set progress
             let percentage = (downloaded_size as f64 / total_size as f64) * 100.0;
             pb.set_position(percentage as u64);
         }
@@ -75,7 +93,6 @@ async fn download_app(
 
 async fn dmg_installer(dmg: &str, pb: ProgressBar) -> Result<(), Box<dyn std::error::Error>> {
     let output = Command::new("hdiutil").arg("attach").arg(dmg).output()?;
-
     if !output.status.success() {
         eprintln!("Failed to attach DMG.");
         return Ok(());
@@ -90,26 +107,22 @@ async fn dmg_installer(dmg: &str, pb: ProgressBar) -> Result<(), Box<dyn std::er
 
     let dest_dir = Path::new("/Applications");
 
-    pb.set_length(100);
+    let mut entries = fs::read_dir(volume_path).await?;
 
-    for entry in fs::read_dir(volume_path)? {
-        let entry = entry?;
-        let path = entry.path();
-
-        if path.is_file() {
-            if let Some(extension) = path.extension() {
-                if extension == "app" {
-                    pb.set_message(format!(
-                        "Installing {}",
-                        entry.file_name().to_string_lossy()
-                    ));
-                    fs::copy(entry.path(), dest_dir.join(entry.file_name()))?;
-                    pb.set_position(100);
-                    pb.finish_with_message(format!(
-                        "Installed {}",
-                        entry.file_name().to_string_lossy()
-                    ));
-                }
+    while let Some(entry) = entries.next_entry().await? {
+        if let Some(extension) = entry.path().extension() {
+            if extension == "app" {
+                pb.set_message(format!(
+                    "Installing {}",
+                    entry.file_name().to_string_lossy()
+                ));
+                let dest_path = dest_dir.join(entry.file_name());
+                copy_dir(&entry.path(), &dest_path).await?;
+                pb.set_position(100);
+                pb.finish_with_message(format!(
+                    "Installed {}",
+                    entry.file_name().to_string_lossy()
+                ));
             }
         }
     }
@@ -162,7 +175,9 @@ async fn main() {
         "{}/Downloads/mac-soft-rs",
         dirs::home_dir().unwrap().display()
     );
-    fs::create_dir_all(&output_dir).expect("Failed to create directory");
+    fs::create_dir_all(&output_dir)
+        .await
+        .expect("Failed to create output directory");
 
     // Convert selections to actual app names
     let selected_apps: Vec<&str> = selections.into_iter().map(|i| apps[i]).collect();
@@ -177,7 +192,7 @@ async fn main() {
         let output_dir = output_dir.clone();
 
         // Create a new progress bar for this download
-        let pb = mp.add(ProgressBar::new(0));
+        let pb = mp.add(ProgressBar::new(100));
         pb.set_style(
             ProgressStyle::with_template(
                 "[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
@@ -203,13 +218,16 @@ async fn main() {
 
     let mut install_tasks = vec![];
 
-    for entry in fs::read_dir(output_dir).unwrap() {
-        let entry = entry.unwrap();
+    let mut entries = fs::read_dir(output_dir)
+        .await
+        .expect("Failed to read output directory");
+
+    while let Some(entry) = entries.next_entry().await.expect("Failed to read entry") {
         let path = entry.path();
 
         if let Some(extension) = path.extension() {
             if extension == "dmg" {
-                let pb = mp.add(ProgressBar::new(0));
+                let pb = mp.add(ProgressBar::new(100));
                 pb.set_style(
                     ProgressStyle::with_template(
                         "[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
