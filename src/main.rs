@@ -92,7 +92,11 @@ async fn download_app(
 }
 
 async fn dmg_installer(dmg: &str, pb: ProgressBar) -> Result<(), Box<dyn std::error::Error>> {
-    let output = Command::new("hdiutil").arg("attach").arg(dmg).output()?;
+    let output = Command::new("hdiutil")
+        .arg("attach")
+        .arg("-nobrowse")
+        .arg(dmg)
+        .output()?;
     if !output.status.success() {
         eprintln!("{}", String::from_utf8_lossy(&output.stderr));
         return Ok(());
