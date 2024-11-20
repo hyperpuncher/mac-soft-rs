@@ -94,7 +94,7 @@ async fn download_app(
 async fn dmg_installer(dmg: &str, pb: ProgressBar) -> Result<(), Box<dyn std::error::Error>> {
     let output = Command::new("hdiutil").arg("attach").arg(dmg).output()?;
     if !output.status.success() {
-        eprintln!("Failed to attach DMG.");
+        eprintln!("{}", String::from_utf8_lossy(&output.stderr));
         return Ok(());
     }
 
@@ -102,8 +102,9 @@ async fn dmg_installer(dmg: &str, pb: ProgressBar) -> Result<(), Box<dyn std::er
     let volume_path = output_str
         .lines()
         .last()
-        .and_then(|line| line.split_whitespace().last())
-        .unwrap();
+        .and_then(|line| line.split("  ").last())
+        .unwrap()
+        .trim();
 
     let dest_dir = Path::new("/Applications");
 
@@ -114,23 +115,39 @@ async fn dmg_installer(dmg: &str, pb: ProgressBar) -> Result<(), Box<dyn std::er
             if extension == "app" {
                 pb.set_message(format!(
                     "Installing {}",
-                    entry.file_name().to_string_lossy()
+                    entry
+                        .file_name()
+                        .to_string_lossy()
+                        .split('.')
+                        .next()
+                        .unwrap()
                 ));
                 let dest_path = dest_dir.join(entry.file_name());
                 copy_dir(&entry.path(), &dest_path).await?;
                 pb.set_position(100);
                 pb.finish_with_message(format!(
                     "Installed {}",
-                    entry.file_name().to_string_lossy()
+                    entry
+                        .file_name()
+                        .to_string_lossy()
+                        .split('.')
+                        .next()
+                        .unwrap()
                 ));
             }
         }
     }
 
-    Command::new("hdiutil")
+    let output = Command::new("hdiutil")
         .arg("detach")
+        .arg("-force")
         .arg(volume_path)
         .output()?;
+
+    if !output.status.success() {
+        eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+        return Ok(());
+    }
 
     Ok(())
 }
